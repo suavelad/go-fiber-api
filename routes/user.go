@@ -27,10 +27,22 @@ func CreateResponseUser(user models.User) User {
 
 func CreateUser(c *fiber.Ctx) error {
 	var user models.User
+	var request User
 
-	if err := c.BodyParser(&user); err != nil {
+	if err := c.BodyParser(&request); err != nil {
 		return c.Status(400).JSON(err.Error())
 	}
+
+	if err := validate.Struct(request); err != nil {
+		// Return validation error
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"validation_error": err.Error()})
+	}
+	user = models.User{
+		FirstName: request.FirstName,
+		LastName:  request.LastName,
+		Email:     request.Email,
+	}
+
 	database.DB.Db.Create(&user)
 	responseUser := CreateResponseUser(user)
 
@@ -89,9 +101,9 @@ func UpdateUser(c *fiber.Ctx) error {
 	}
 
 	type UpdateUser struct {
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
-		Email     string `json:"email"`
+		FirstName string `validate: "required" json:"first_name"`
+		LastName  string `validate: "required" json:"last_name"`
+		Email     string `validate: "required" json:"email"`
 	}
 
 	var updateData UpdateUser

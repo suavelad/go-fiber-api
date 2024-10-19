@@ -10,8 +10,8 @@ import (
 
 type Product struct {
 	Id           uint   `json:"id"`
-	Name         string `json:"name"`
-	SerialNumber string `json:"serial_number"`
+	Name         string `validate:"required" json:"name"`
+	SerialNumber string `validate:"required" json:"serial_number"`
 }
 
 func CreateResponseProduct(product models.Product) Product {
@@ -25,8 +25,20 @@ func CreateResponseProduct(product models.Product) Product {
 func CreateProduct(c *fiber.Ctx) error {
 	var product models.Product
 
-	if err := c.BodyParser(&product); err != nil {
+	// Validate the struct using the validator
+	var requestProduct Product
+	if err := c.BodyParser(&requestProduct); err != nil {
 		return c.Status(400).JSON(err.Error())
+	}
+
+	if err := validate.Struct(requestProduct); err != nil {
+		// Return validation error
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"validation_error": err.Error()})
+	}
+
+	product = models.Product{
+		Name:         requestProduct.Name,
+		SerialNumber: requestProduct.SerialNumber,
 	}
 	database.DB.Db.Create(&product)
 	responseProduct := CreateResponseProduct(product)
@@ -83,8 +95,8 @@ func UpdateProduct(c *fiber.Ctx) error {
 	}
 
 	type UpdateProduct struct {
-		Name         string `json:"name"`
-		SerialNumber string `json:"serial_number"`
+		Name         string `validate:"required" json:"name"`
+		SerialNumber string `validate: "required" json:"serial_number"`
 	}
 
 	var updateData UpdateProduct
@@ -93,6 +105,11 @@ func UpdateProduct(c *fiber.Ctx) error {
 		return c.Status(500).JSON(err.Error())
 	}
 
+	if err := validate.Struct(updateData); err != nil {
+		
+		// Return validation error
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"validation_error": err.Error()})
+	}
 	product.Name = updateData.Name
 	product.SerialNumber = updateData.SerialNumber
 

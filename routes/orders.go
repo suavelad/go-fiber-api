@@ -4,18 +4,21 @@ import (
 	"errors"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/suavelad/go-fibre-api/database"
 	"github.com/suavelad/go-fibre-api/models"
 )
 
 type Order struct {
-	Id        uint      `json:"id" gorm:"primaryKey"`
-	Title     string    `json:"title"`
-	Product   Product   `json:"product"`
-	User      User      `json:"user"`
+	Id        uint      `json:"id"  gorm:"primaryKey"`
+	Title     string    `validate:"required" json:"title"`
+	Product   Product   `validate:"required" json:"product"`
+	User      User      `validate:"required" json:"user"`
 	CreatedAt time.Time `json:"order_date "`
 }
+
+var validate = validator.New()
 
 func CreateOrderResponse(order models.Order, user User, product Product) Order {
 	return Order{
@@ -29,8 +32,21 @@ func CreateOrderResponse(order models.Order, user User, product Product) Order {
 
 func CreateOrder(c *fiber.Ctx) error {
 	var order models.Order
-	if err := c.BodyParser(&order); err != nil {
+	var request Order
+
+	if err := c.BodyParser(&request); err != nil {
 		return c.Status(400).JSON(err.Error())
+	}
+
+	// Validate the struct using the validator
+	if err := validate.Struct(request); err != nil {
+		// Return validation error
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"validation_error": err.Error()})
+	}
+	order = models.Order{
+		Title:        request.Title,
+		ProductRefer: int(request.Product.Id),
+		UserRefer:    int(request.User.Id),
 	}
 
 	var user models.User
@@ -40,7 +56,8 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	var product models.Product
 	if err := findProduct(order.ProductRefer, &product); err != nil {
-		return c.Status(400).JSON(err.Error)
+		// return c.Status(400).JSON(err.Error)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	database.DB.Db.Create(&order)
@@ -109,20 +126,29 @@ func UpdateOrder(c *fiber.Ctx) error {
 		return errors.New("invalid id")
 	}
 	var order models.Order
+
 	if err := findOrder(uint(id), &order); err != nil {
 		return c.Status(400).JSON(err.Error)
 	}
 
 	type UpdateOrder struct {
-		Title   string `json:"title"`
-		Product uint   `json:"product"`
-		User    uint   `json:"user"`
+		Title   string `validate:"required" json:"title"`
+		Product uint   `validate:"required" json:"product"`
+		User    uint   `validate:"required" json:"user"`
 	}
 	var updateData UpdateOrder
+
 	if err := c.BodyParser(&updateData); err != nil {
 		return c.Status(500).JSON(err.Error())
 	}
 
+	
+	// Validate the struct using the validator
+	if err := validate.Struct(updateData); err != nil {
+		// Return validation error
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"validation_error": err.Error()})
+	}
+	
 	order.Title = updateData.Title
 	order.UserRefer = int(updateData.User)
 	order.ProductRefer = int(updateData.Product)

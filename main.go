@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/healthcheck"
 	"github.com/suavelad/go-fibre-api/database"
 	"github.com/suavelad/go-fibre-api/routes"
 )
@@ -50,5 +51,17 @@ func main() {
 		AllowOrigins: "https://gofiber.io, https://gofiber.net",
 		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
+
+	app.Use(healthcheck.New(healthcheck.Config{
+		LivenessProbe: func(c *fiber.Ctx) bool {
+			return true
+		},
+		LivenessEndpoint: "/live",
+		ReadinessProbe: func(c *fiber.Ctx) bool {
+			return true
+		},
+		ReadinessEndpoint: "/ready",
+	}))
+
 	app.Listen(":3000")
 }
