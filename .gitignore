@@ -2,3 +2,4 @@ api.db
 
 go.sum
 *.txt
+/tmp
